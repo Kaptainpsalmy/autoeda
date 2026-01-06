@@ -429,7 +429,7 @@
                     {% if 'heatmap' in plot_paths %}
                     <div class="plot-container">
                         <h3>Correlation Heatmap</h3>
-                        <img src="{{ url_for('static', filename=plot_paths.heatmap) }}"
+                        <img src="{{ url_for('serve_plot', filename=plot_paths.heatmap.split('/')[-1]) }}"
                              alt="Correlation heatmap showing relationships between features">
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='heatmap') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
@@ -442,7 +442,7 @@
                     {% if 'boxplot' in plot_paths %}
                     <div class="plot-container">
                         <h3>Outlier Detection Boxplots</h3>
-                        <img src="{{ url_for('static', filename=plot_paths.boxplot) }}"
+                        <img src="{{ url_for('serve_plot', filename=plot_paths.boxplot.split('/')[-1]) }}"
                              alt="Boxplots showing outliers in the data">
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='boxplot') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
@@ -455,7 +455,7 @@
                     {% if 'barchart' in plot_paths %}
                     <div class="plot-container">
                         <h3>Categorical Distribution</h3>
-                        <img src="{{ url_for('static', filename=plot_paths.barchart) }}"
+                        <img src="{{ url_for('serve_plot', filename=plot_paths.barchart.split('/')[-1]) }}"
                              alt="Bar charts showing categorical distribution">
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='barchart') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
