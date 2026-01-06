@@ -416,8 +416,10 @@
                     {% if 'histogram' in plot_paths %}
                     <div class="plot-container">
                         <h3>Distribution Histograms</h3>
-                        <img src="{{ url_for('serve_plot', filename=plot_paths.histogram.split('/')[-1]) }}"
-                             alt="Histogram showing data distribution">
+                        <img
+  src="{{ url_for('serve_plot', filename=plot_paths['histogram']) }}"
+  alt="Histogram showing data distribution">
+
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='hist') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
                                 📥 Download PNG
@@ -429,8 +431,10 @@
                     {% if 'heatmap' in plot_paths %}
                     <div class="plot-container">
                         <h3>Correlation Heatmap</h3>
-                        <img src="{{ url_for('serve_plot', filename=plot_paths.heatmap.split('/')[-1]) }}"
-                             alt="Correlation heatmap showing relationships between features">
+                        <img
+  src="{{ url_for('serve_plot', filename=plot_paths['heatmap']) }}"
+  alt="Correlation heatmap showing relationships between features">
+
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='heatmap') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
                                 📥 Download PNG
@@ -442,8 +446,10 @@
                     {% if 'boxplot' in plot_paths %}
                     <div class="plot-container">
                         <h3>Outlier Detection Boxplots</h3>
-                        <img src="{{ url_for('serve_plot', filename=plot_paths.boxplot.split('/')[-1]) }}"
-                             alt="Boxplots showing outliers in the data">
+                        <img
+  src="{{ url_for('serve_plot', filename=plot_paths['boxplot']) }}"
+  alt="Boxplots showing outliers in the data">
+
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='boxplot') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
                                 📥 Download PNG
@@ -455,8 +461,10 @@
                     {% if 'barchart' in plot_paths %}
                     <div class="plot-container">
                         <h3>Categorical Distribution</h3>
-                        <img src="{{ url_for('serve_plot', filename=plot_paths.barchart.split('/')[-1]) }}"
-                             alt="Bar charts showing categorical distribution">
+                        <img
+  src="{{ url_for('serve_plot', filename=plot_paths['barchart']) }}"
+  alt="Bar charts showing categorical distribution">
+
                         <div style="margin-top: 15px;">
                             <a href="{{ url_for('download_plot', plot_type='barchart') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
                                 📥 Download PNG
