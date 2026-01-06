@@ -129,7 +129,7 @@ def detect_column_types(df):
             # If no format worked perfectly, try infer_datetime_format
             if 'date' not in column_info.get(col, ''):
                 try:
-                    converted = pd.to_datetime(df[col], errors='coerce', infer_datetime_format=True)
+                    converted = pd.to_datetime(df[col], errors='coerce')
                     if converted.notna().mean() > 0.6:
                         df[col] = converted
                         column_info[col] = 'date'
@@ -341,7 +341,7 @@ def clean_dataset(df, column_types, user_overrides=None):
 
                 elif new_type == 'date' and original_type != 'date':
                     try:
-                        df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors='coerce', infer_datetime_format=True)
+                        df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors='coerce')
                         cleaning_report['columns_converted'][
                             col] = f'User override: Converted from {original_type} to date'
                     except:
