@@ -409,56 +409,36 @@
                 {% endif %}
             </section>
 
-            {% if plots %}
-            <section class="results-section">
-                <h2>📈 Exploratory Visualizations</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-top: 20px;">
-                    {% if 'histogram' in plots %}
-                    <div class="plot-container">
-                        <h3>Distribution Histograms</h3>
-                        <img src="data:image/png;base64,{{ plots.histogram }}"
-                             alt="Histogram showing data distribution">
-                    </div>
-                    {% endif %}
+           {% if plots %}
+<section class="results-section">
+    <h2>📈 Exploratory Visualizations</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 25px; margin-top: 20px;">
+        {% if 'histogram' in plots %}
+        <div class="plot-container">
+            <h3>Distribution Histogram</h3>
+            <img src="data:image/png;base64,{{ plots.histogram }}"
+                 alt="Histogram showing data distribution">
+        </div>
+        {% endif %}
 
-                    {% if 'heatmap' in plots %}
-                    <div class="plot-container">
-                        <h3>Correlation Heatmap</h3>
-                        <img src="data:image/png;base64,{{ plots.heatmap }}"
-                             alt="Correlation heatmap showing relationships between features">
-                    </div>
-                    {% endif %}
+        {% if 'heatmap' in plots %}
+        <div class="plot-container">
+            <h3>Correlation Heatmap</h3>
+            <img src="data:image/png;base64,{{ plots.heatmap }}"
+                 alt="Correlation heatmap showing relationships between features">
+        </div>
+        {% endif %}
 
-                    {% if 'boxplot' in plots %}
-                    <div class="plot-container">
-                        <h3>Outlier Detection Boxplots</h3>
-                        <img src="data:image/png;base64,{{ plots.boxplot }}"
-                             alt="Boxplots showing outliers in the data">
-                    </div>
-                    {% endif %}
-
-                    {% if 'barchart' in plots %}
-                    <div class="plot-container">
-                        <h3>Categorical Distribution</h3>
-                        <img src="data:image/png;base64,{{ plots.barchart }}"
-                             alt="Bar charts showing categorical distribution">
-                    </div>
-                    {% endif %}
-
-                    {% if 'noplot' in plots %}
-                    <div class="plot-container">
-                        <h3>Visualization Status</h3>
-                        <img src="data:image/png;base64,{{ plots.noplot }}"
-                             alt="No visualizations available">
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
-                    <p>📝 <em>Visualizations are embedded directly in the page as high-quality PNG images.</em></p>
-                </div>
-            </section>
-            {% endif %}
+        {% if 'barchart' in plots %}
+        <div class="plot-container">
+            <h3>Categorical Distribution</h3>
+            <img src="data:image/png;base64,{{ plots.barchart }}"
+                 alt="Bar chart showing categorical distribution">
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
 
             <section class="results-section">
                 <h2>💾 Export Results</h2>
