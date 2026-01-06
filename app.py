@@ -17,9 +17,21 @@ import warnings
 warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['PROCESSED_FOLDER'] = 'processed'
+
+# Configuration for Vercel (serverless) vs local
+if 'VERCEL' in os.environ:
+    # Vercel serverless environment
+    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB for Vercel
+    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+    app.config['PROCESSED_FOLDER'] = '/tmp/processed'
+else:
+    # Local development
+    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB locally
+    app.config['UPLOAD_FOLDER'] = 'uploads'
+    app.config['PROCESSED_FOLDER'] = 'processed'
+
+
+
 app.config['SECRET_KEY'] = 'autoeda-secret-key-2024'
 
 
