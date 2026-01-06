@@ -409,61 +409,53 @@
                 {% endif %}
             </section>
 
-            {% if plot_paths %}
+            {% if plots %}
             <section class="results-section">
                 <h2>📈 Exploratory Visualizations</h2>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-top: 20px;">
-                    {% if 'histogram' in plot_paths %}
+                    {% if 'histogram' in plots %}
                     <div class="plot-container">
                         <h3>Distribution Histograms</h3>
-                        <img src="{{ plot_paths.histogram }}"
+                        <img src="data:image/png;base64,{{ plots.histogram }}"
                              alt="Histogram showing data distribution">
-                        <div style="margin-top: 15px;">
-                            <a href="{{ url_for('download_plot', plot_type='hist') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
-                                📥 Download PNG
-                            </a>
-                        </div>
                     </div>
                     {% endif %}
 
-                    {% if 'heatmap' in plot_paths %}
+                    {% if 'heatmap' in plots %}
                     <div class="plot-container">
                         <h3>Correlation Heatmap</h3>
-                        <img src="{{ plot_paths.heatmap }}"
+                        <img src="data:image/png;base64,{{ plots.heatmap }}"
                              alt="Correlation heatmap showing relationships between features">
-                        <div style="margin-top: 15px;">
-                            <a href="{{ url_for('download_plot', plot_type='heatmap') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
-                                📥 Download PNG
-                            </a>
-                        </div>
                     </div>
                     {% endif %}
 
-                    {% if 'boxplot' in plot_paths %}
+                    {% if 'boxplot' in plots %}
                     <div class="plot-container">
                         <h3>Outlier Detection Boxplots</h3>
-                        <img src="{{ plot_paths.boxplot }}"
+                        <img src="data:image/png;base64,{{ plots.boxplot }}"
                              alt="Boxplots showing outliers in the data">
-                        <div style="margin-top: 15px;">
-                            <a href="{{ url_for('download_plot', plot_type='boxplot') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
-                                📥 Download PNG
-                            </a>
-                        </div>
                     </div>
                     {% endif %}
 
-                    {% if 'barchart' in plot_paths %}
+                    {% if 'barchart' in plots %}
                     <div class="plot-container">
                         <h3>Categorical Distribution</h3>
-                        <img src="{{ plot_paths.barchart }}"
+                        <img src="data:image/png;base64,{{ plots.barchart }}"
                              alt="Bar charts showing categorical distribution">
-                        <div style="margin-top: 15px;">
-                            <a href="{{ url_for('download_plot', plot_type='barchart') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
-                                📥 Download PNG
-                            </a>
-                        </div>
                     </div>
                     {% endif %}
+
+                    {% if 'noplot' in plots %}
+                    <div class="plot-container">
+                        <h3>Visualization Status</h3>
+                        <img src="data:image/png;base64,{{ plots.noplot }}"
+                             alt="No visualizations available">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+                    <p>📝 <em>Visualizations are embedded directly in the page as high-quality PNG images.</em></p>
                 </div>
             </section>
             {% endif %}
@@ -492,6 +484,9 @@
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">
                         🔄 Analyze Another File
                     </a>
+                    <a href="{{ url_for('clear_session') }}" class="btn" style="background: var(--text-secondary);">
+                        🗑️ Clear Session
+                    </a>
                 </div>
 
                 {% if cleaned_filename %}
@@ -511,6 +506,9 @@
                     <a href="{{ url_for('index') }}" class="btn">
                         🔄 Try Again
                     </a>
+                    <a href="{{ url_for('clear_session') }}" class="btn btn-secondary">
+                        🗑️ Clear Session & Start Over
+                    </a>
                 </div>
             </section>
         {% endif %}
@@ -523,12 +521,25 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Highlight rows with missing values
             const rows = document.querySelectorAll('table tbody tr');
             rows.forEach(row => {
                 const missingCell = row.cells[2];
                 if (missingCell && missingCell.textContent.includes('%')) {
                     row.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
                 }
+            });
+
+            // Add image loading fallback
+            const images = document.querySelectorAll('.plot-container img');
+            images.forEach(img => {
+                img.onerror = function() {
+                    this.style.display = 'none';
+                    const container = this.parentElement;
+                    const fallback = document.createElement('div');
+                    fallback.innerHTML = '<p style="color: var(--text-secondary); padding: 40px;">Image failed to load. Please try processing the data again.</p>';
+                    container.appendChild(fallback);
+                };
             });
         });
     </script>
