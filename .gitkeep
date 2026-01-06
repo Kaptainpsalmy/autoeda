@@ -1,0 +1,3 @@
+touch uploads/.gitkeep
+touch processed/.gitkeep
+touch static/plots/.gitkeep

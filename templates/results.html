@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - AutoEDA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <style>
+        .results-section {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+
+        .results-section h2 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .overview-card {
+            background: var(--accent-soft);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .overview-card h3 {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .overview-card .value {
+            color: var(--accent);
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .overview-card .label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        th {
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            padding: 15px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--bg-main);
+        }
+
+        .plot-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .plot-container img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            transition: transform 0.3s ease;
+        }
+
+        .plot-container img:hover {
+            transform: scale(1.02);
+        }
+
+        .plot-container h3 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 40px 0 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 30px;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #1e40af;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: #374151;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .badge-numeric {
+            background: #dbeafe;
+            color: var(--accent);
+        }
+
+        .badge-categorical {
+            background: #f3e8ff;
+            color: #8b5cf6;
+        }
+
+        .badge-date {
+            background: #dcfce7;
+            color: #10b981;
+        }
+
+        .badge-text {
+            background: #f3f4f6;
+            color: var(--text-secondary);
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        @media (max-width: 768px) {
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .overview-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+        }
+
+        .cleaning-details {
+            background: var(--accent-soft);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .cleaning-details h4 {
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .cleaning-details ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .cleaning-details li {
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Analysis Complete</h1>
+            <p class="subtitle">Your dataset has been processed and analyzed</p>
+        </div>
+    </header>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category in ['success', 'error', 'warning'] else 'info' }}">
+                            {% if category == 'success' %} ✅
+                            {% elif category == 'error' %} ❌
+                            {% elif category == 'warning' %} ⚠️
+                            {% else %} ℹ️
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if summary %}
+            <section class="results-section">
+                <h2>📋 Dataset Overview</h2>
+                <div class="overview-grid">
+                    <div class="overview-card">
+                        <h3>Dataset Size</h3>
+                        <div class="value">{{ summary.dataset_info.total_rows if summary.dataset_info else 'N/A' }}</div>
+                        <div class="label">Rows × {{ summary.dataset_info.total_columns if summary.dataset_info else 'N/A' }} Columns</div>
+                    </div>
+
+                    <div class="overview-card">
+                        <h3>Memory Usage</h3>
+                        {% if summary.dataset_info and summary.dataset_info.memory_usage %}
+                            <div class="value">{{ summary.dataset_info.memory_usage }}</div>
+                        {% else %}
+                            <div class="value">N/A</div>
+                        {% endif %}
+                        <div class="label">Dataset size</div>
+                    </div>
+
+                    <div class="overview-card">
+                        <h3>Duplicates Removed</h3>
+                        {% if summary.cleaning_summary and summary.cleaning_summary.duplicates_removed is not none %}
+                            <div class="value">{{ summary.cleaning_summary.duplicates_removed }}</div>
+                            {% if summary.dataset_info and summary.dataset_info.total_rows > 0 %}
+                                <div class="label">
+                                    {{ ((summary.cleaning_summary.duplicates_removed / summary.dataset_info.total_rows) * 100) | round(1) }}% reduction
+                                </div>
+                            {% else %}
+                                <div class="label">Duplicates removed</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="value">0</div>
+                            <div class="label">No duplicates found</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="overview-card">
+                        <h3>Missing Values Filled</h3>
+                        {% if summary.cleaning_summary and summary.cleaning_summary.missing_values_filled is not none %}
+                            <div class="value">{{ summary.cleaning_summary.missing_values_filled }}</div>
+                            <div class="label">Values imputed</div>
+                        {% else %}
+                            <div class="value">0</div>
+                            <div class="label">No missing values</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if cleaning_report and cleaning_report.get('invalid_numeric_corrected') %}
+                <div class="cleaning-details">
+                    <h4>📝 Data Cleaning Details</h4>
+                    <ul>
+                        {% for col, count in cleaning_report.invalid_numeric_corrected.items() %}
+                        <li><strong>{{ col }}</strong>: {{ count }} invalid numeric entries converted to median</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if cleaning_report and cleaning_report.get('columns_converted') %}
+                <div class="cleaning-details">
+                    <h4>🔄 Column Type Conversions</h4>
+                    <ul>
+                        {% for col, message in cleaning_report.columns_converted.items() %}
+                        <li><strong>{{ col }}</strong>: {{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </section>
+
+            <section class="results-section">
+                <h2>📊 Column Information</h2>
+                {% if summary.column_analysis and summary.column_analysis|length > 0 %}
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Column Name</th>
+                                <th>Data Type</th>
+                                <th>Missing Values</th>
+                                <th>Unique Values</th>
+                                <th>Type Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for col in summary.column_analysis %}
+                            <tr>
+                                <td><strong>{{ col.name }}</strong></td>
+                                <td>
+                                    {% if col.type == 'numeric' %}
+                                        <span class="badge badge-numeric">Numeric</span>
+                                    {% elif col.type == 'categorical' %}
+                                        <span class="badge badge-categorical">Categorical</span>
+                                    {% elif col.type == 'date' %}
+                                        <span class="badge badge-date">Date (DD/MM/YYYY)</span>
+                                    {% else %}
+                                        <span class="badge badge-text">Text</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if col.missing_values > 0 %}
+                                    <span class="badge badge-error">
+                                        {{ col.missing_values }}
+                                        {% if col.missing_percentage %}
+                                            ({{ col.missing_percentage|round(1) }}%)
+                                        {% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge badge-success">
+                                        Complete
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ col.unique_values }}</td>
+                                <td>
+                                    {% if col.type == 'numeric' and col.mean is not none %}
+                                        Mean: {{ col.mean|round(2) }}<br>
+                                        Median: {{ col.median|round(2) }}
+                                    {% elif col.type == 'categorical' and col.mode %}
+                                        Mode: {{ col.mode }}
+                                    {% elif col.type == 'date' %}
+                                        Format: DD/MM/YYYY
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color: var(--text-secondary); text-align: center; padding: 20px;">
+                    No column analysis available.
+                </p>
+                {% endif %}
+            </section>
+
+            {% if plot_paths %}
+            <section class="results-section">
+                <h2>📈 Exploratory Visualizations</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px; margin-top: 20px;">
+                    {% if 'histogram' in plot_paths %}
+                    <div class="plot-container">
+                        <h3>Distribution Histograms</h3>
+                        <img src="{{ url_for('static', filename=plot_paths.histogram) }}"
+                             alt="Histogram showing data distribution">
+                        <div style="margin-top: 15px;">
+                            <a href="{{ url_for('download_plot', plot_type='hist') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
+                                📥 Download PNG
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if 'heatmap' in plot_paths %}
+                    <div class="plot-container">
+                        <h3>Correlation Heatmap</h3>
+                        <img src="{{ url_for('static', filename=plot_paths.heatmap) }}"
+                             alt="Correlation heatmap showing relationships between features">
+                        <div style="margin-top: 15px;">
+                            <a href="{{ url_for('download_plot', plot_type='heatmap') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
+                                📥 Download PNG
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if 'boxplot' in plot_paths %}
+                    <div class="plot-container">
+                        <h3>Outlier Detection Boxplots</h3>
+                        <img src="{{ url_for('static', filename=plot_paths.boxplot) }}"
+                             alt="Boxplots showing outliers in the data">
+                        <div style="margin-top: 15px;">
+                            <a href="{{ url_for('download_plot', plot_type='boxplot') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
+                                📥 Download PNG
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if 'barchart' in plot_paths %}
+                    <div class="plot-container">
+                        <h3>Categorical Distribution</h3>
+                        <img src="{{ url_for('static', filename=plot_paths.barchart) }}"
+                             alt="Bar charts showing categorical distribution">
+                        <div style="margin-top: 15px;">
+                            <a href="{{ url_for('download_plot', plot_type='barchart') }}" class="btn" style="padding: 10px 20px; font-size: 14px;">
+                                📥 Download PNG
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="results-section">
+                <h2>💾 Export Results</h2>
+                <div style="margin: 20px 0; padding: 20px; background: var(--accent-soft); border-radius: 10px;">
+                    <p style="margin-bottom: 15px;">
+                        <strong>Cleaning applied to your dataset:</strong>
+                    </p>
+                    <ul style="margin-bottom: 20px; padding-left: 20px;">
+                        <li><strong>Numeric columns:</strong> Invalid entries converted to NaN, then filled with column median</li>
+                        <li><strong>Categorical columns:</strong> Missing values filled with most frequent value (mode)</li>
+                        <li><strong>Date columns:</strong> Formatted to DD/MM/YYYY</li>
+                        <li><strong>All columns:</strong> Exact duplicate rows removed</li>
+                        <li><strong>Data types preserved:</strong> Numeric → numeric, Text → text, Date → date format</li>
+                    </ul>
+                </div>
+
+                <div class="btn-group">
+                    {% if cleaned_filename %}
+                    <a href="{{ url_for('download_file', filename=cleaned_filename) }}" class="btn">
+                        📥 Download Cleaned CSV
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                        🔄 Analyze Another File
+                    </a>
+                </div>
+
+                {% if cleaned_filename %}
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+                    File will be saved as: <code>{{ cleaned_filename }}</code><br>
+                    <small>Numeric columns remain numeric, categorical as text, dates as DD/MM/YYYY</small>
+                </p>
+                {% endif %}
+            </section>
+        {% else %}
+            <section class="results-section">
+                <h2>⚠️ No Analysis Results Available</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                    Something went wrong during the analysis. The results could not be generated.
+                </p>
+                <div class="btn-group">
+                    <a href="{{ url_for('index') }}" class="btn">
+                        🔄 Try Again
+                    </a>
+                </div>
+            </section>
+        {% endif %}
+    </div>
+
+    <footer>
+        <p>AutoEDA • Automated Data Cleaning & Exploratory Analysis</p>
+        <p>Ready for your next analysis? Upload another CSV file anytime.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('table tbody tr');
+            rows.forEach(row => {
+                const missingCell = row.cells[2];
+                if (missingCell && missingCell.textContent.includes('%')) {
+                    row.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

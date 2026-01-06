@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Dataset - AutoEDA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <style>
+        .column-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .control-group {
+            background: var(--bg-main);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .control-group .column-name {
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .control-group .sample-values {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-style: italic;
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid var(--border-light);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Dataset Preview</h1>
+            <p class="subtitle">Review column types and make adjustments before analysis</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category in ['success', 'error', 'warning'] else 'info' }}">
+                            {% if category == 'success' %} ✅
+                            {% elif category == 'error' %} ❌
+                            {% elif category == 'warning' %} ⚠️
+                            {% else %} ℹ️
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="preview-section">
+            <h2 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                📁 {{ preview.filename }}
+                <span class="badge">{{ preview.shape[0] }} rows × {{ preview.shape[1] }} columns</span>
+            </h2>
+
+            <p style="margin-bottom: 25px; color: var(--text-secondary);">
+                AutoEDA has detected the following column types. You can override them if needed:
+            </p>
+
+            <form action="/process" method="POST">
+                <div class="column-controls">
+                    {% for column in preview.columns %}
+                        <div class="control-group">
+                            <div class="column-name">{{ column }}</div>
+                            <label for="type_{{ column }}">Column Type:</label>
+                            <select name="type_{{ column }}" id="type_{{ column }}" class="type-selector">
+                                {% set detected_type = preview.column_types.get(column, 'text') %}
+                                <option value="auto" {% if detected_type == 'auto' %}selected{% endif %}>
+                                    Auto-detect ({{ detected_type }})
+                                </option>
+                                <option value="numeric" {% if detected_type == 'numeric' %}selected{% endif %}>
+                                    Numeric
+                                </option>
+                                <option value="categorical" {% if detected_type == 'categorical' %}selected{% endif %}>
+                                    Categorical
+                                </option>
+                                <option value="date" {% if detected_type == 'date' %}selected{% endif %}>
+                                    Date
+                                </option>
+                                <option value="text" {% if detected_type == 'text' %}selected{% endif %}>
+                                    Text
+                                </option>
+                            </select>
+
+                            <div class="sample-values">
+                                Sample:
+                                {% set sample_value = preview.sample[0].get(column, '') %}
+                                {{ sample_value[:30] }}{% if sample_value|length > 30 %}...{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="preview-actions">
+                    <button type="submit" class="submit-btn">
+                        🚀 Process with AutoEDA
+                    </button>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline">
+                        ↩️ Upload Different File
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Data Preview Table -->
+        <div class="preview-section">
+            <h3>Data Preview (First 10 rows)</h3>
+            <div style="overflow-x: auto;">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            {% for column in preview.columns %}
+                                <th>
+                                    {{ column }}
+                                    <span class="badge badge-{{ preview.column_types.get(column, 'text') }}">
+                                        {{ preview.column_types.get(column, 'text') }}
+                                    </span>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in preview.sample %}
+                            <tr>
+                                {% for column in preview.columns %}
+                                    <td>
+                                        {% set value = row.get(column, '') %}
+                                        {% if value is none or value == 'nan' %}
+                                            <span style="color: var(--error); font-style: italic;">null</span>
+                                        {% elif preview.column_types.get(column) == 'numeric' %}
+                                            {{ value|round(2) if value is number else value }}
+                                        {% else %}
+                                            {{ value|string|truncate(30) }}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+
+    <footer>
+        <p>AutoEDA • Column Type Detection & Preview</p>
+        <p>Adjust column types if AutoEDA's detection needs correction</p>
+    </footer>
+</body>
+</html>
+

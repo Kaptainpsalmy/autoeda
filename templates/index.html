@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoEDA - Automated Data Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <style>
+        .hero-section {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(29, 78, 216, 0.05) 100%);
+            border-radius: 20px;
+            margin-bottom: 40px;
+            border: 1px solid var(--border);
+        }
+
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--accent), #1e40af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 30px;
+            line-height: 1.6;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 50px 0;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .workflow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 50px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .step {
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0 auto 20px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .step-content h4 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .step-content p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .step-connector {
+            position: absolute;
+            right: -25px;
+            top: 25px;
+            width: 50px;
+            height: 2px;
+            background: var(--border);
+        }
+
+        .step:last-child .step-connector {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .step-connector {
+                display: none;
+            }
+
+            .workflow-steps {
+                flex-direction: column;
+            }
+
+            .hero-title {
+                font-size: 2.2rem;
+            }
+        }
+
+        .upload-highlight {
+            background: var(--accent-soft);
+            border: 2px dashed var(--accent);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .file-requirements {
+            background: var(--bg-main);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .file-requirements h4 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .requirements-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .requirements-list li {
+            padding: 8px 0;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .requirements-list li:before {
+            content: "✓";
+            color: var(--success);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>AutoEDA</h1>
+            <p class="subtitle">Automated Exploratory Data Analysis for CSV Files</p>
+            <p class="tagline">No code required • Instant insights • Professional results</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category in ['success', 'error', 'warning'] else 'info' }}">
+                            {% if category == 'success' %} ✅
+                            {% elif category == 'error' %} ❌
+                            {% elif category == 'warning' %} ⚠️
+                            {% else %} ℹ️
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <h1 class="hero-title">Transform Your Data in Minutes</h1>
+            <p class="hero-subtitle">
+                AutoEDA automatically cleans your CSV datasets, generates comprehensive statistical summaries,
+                and creates professional visualizations — all without writing a single line of code.
+            </p>
+
+            <div class="upload-highlight">
+                <h2 style="margin-bottom: 20px; color: var(--accent);">Ready to Analyze?</h2>
+                <form class="upload-form" action="/upload" method="POST" enctype="multipart/form-data">
+                    <div class="file-input-wrapper">
+                        <input type="file" name="file" id="fileInput" accept=".csv" required
+                               class="file-input" onchange="updateFileName()">
+                    </div>
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        <span id="btnText">🚀 Upload & Analyze CSV</span>
+                        <span id="loadingSpinner" style="display: none;">
+                            <div class="spinner" style="width: 20px; height: 20px;"></div>
+                        </span>
+                    </button>
+                </form>
+
+                <div class="file-requirements">
+                    <h4>📋 File Requirements</h4>
+                    <ul class="requirements-list">
+                        <li>CSV format (Comma Separated Values)</li>
+                        <li>Maximum file size: 50MB</li>
+                        <li>Supports up to 10,000+ rows</li>
+                        <li>Automatic column type detection</li>
+                        <li>Handles missing values and duplicates</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workflow Steps -->
+        <section>
+            <h2 style="text-align: center; margin-bottom: 40px; color: var(--text-primary);">
+                How AutoEDA Works
+            </h2>
+            <div class="workflow-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Upload CSV</h4>
+                        <p>Upload your dataset. AutoEDA handles messy, real-world data with automatic type detection.</p>
+                    </div>
+                    <div class="step-connector"></div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Smart Cleaning</h4>
+                        <p>Automatic handling of missing values, duplicates, and data type standardization.</p>
+                    </div>
+                    <div class="step-connector"></div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Advanced Analysis</h4>
+                        <p>Comprehensive statistics, outlier detection, and correlation analysis.</p>
+                    </div>
+                    <div class="step-connector"></div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h4>Visual Insights</h4>
+                        <p>Professional visualizations including histograms, heatmaps, and box plots.</p>
+                    </div>
+                    <div class="step-connector"></div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h4>Export Results</h4>
+                        <p>Download cleaned data and visualizations for reports and further analysis.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section>
+            <h2 style="text-align: center; margin-bottom: 40px; color: var(--text-primary);">
+                Everything You Need for Data Analysis
+            </h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">🧹</span>
+                    <h3 class="feature-title">Smart Data Cleaning</h3>
+                    <p class="feature-desc">
+                        Automatic handling of missing values, duplicate removal, and data type conversion.
+                        Supports numeric, categorical, date, and text columns.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">📊</span>
+                    <h3 class="feature-title">Statistical Analysis</h3>
+                    <p class="feature-desc">
+                        Comprehensive statistics including mean, median, quartiles, standard deviation,
+                        and correlation matrices for numeric data.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">📈</span>
+                    <h3 class="feature-title">Visual Explorations</h3>
+                    <p class="feature-desc">
+                        Professional visualizations: distribution histograms, correlation heatmaps,
+                        outlier box plots, and categorical bar charts.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">🔍</span>
+                    <h3 class="feature-title">Outlier Detection</h3>
+                    <p class="feature-desc">
+                        Automatic identification of outliers using IQR method with detailed reporting
+                        and visualization.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">💾</span>
+                    <h3 class="feature-title">Export & Download</h3>
+                    <p class="feature-desc">
+                        Download cleaned datasets in CSV format and all visualizations as high-quality
+                        PNG images for reports.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <span class="feature-icon">⚡</span>
+                    <h3 class="feature-title">No-Code Solution</h3>
+                    <p class="feature-desc">
+                        Designed for analysts, students, and researchers who need quick insights
+                        without programming knowledge.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Use Cases -->
+        <section class="preview-section" style="margin: 60px 0;">
+            <h2 style="text-align: center; margin-bottom: 30px; color: var(--text-primary);">
+                Who Uses AutoEDA?
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 15px;">🎓</div>
+                    <h4 style="color: var(--accent); margin-bottom: 10px;">Data Science Students</h4>
+                    <p style="color: var(--text-secondary);">
+                        Quickly understand datasets for coursework and projects without coding.
+                    </p>
+                </div>
+
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 15px;">🔬</div>
+                    <h4 style="color: var(--accent); margin-bottom: 10px;">Researchers</h4>
+                    <p style="color: var(--text-secondary);">
+                        Clean and analyze research data with automatic statistical reporting.
+                    </p>
+                </div>
+
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 15px;">📋</div>
+                    <h4 style="color: var(--accent); margin-bottom: 10px;">Business Analysts</h4>
+                    <p style="color: var(--text-secondary);">
+                        Get instant insights from sales, marketing, or operational data.
+                    </p>
+                </div>
+
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 15px;">👨‍💻</div>
+                    <h4 style="color: var(--accent); margin-bottom: 10px;">Data Professionals</h4>
+                    <p style="color: var(--text-secondary);">
+                        Rapid initial exploration before in-depth analysis or modeling.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final CTA -->
+        <section style="text-align: center; padding: 40px; background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
+                      border-radius: 16px; color: white; margin: 60px 0;">
+            <h2 style="margin-bottom: 20px; font-size: 2rem;">Start Analyzing Your Data Now</h2>
+            <p style="margin-bottom: 30px; font-size: 1.1rem; opacity: 0.9; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Upload your CSV file and get professional data analysis results in seconds — completely free.
+            </p>
+            <form action="/upload" method="POST" enctype="multipart/form-data" style="max-width: 500px; margin: 0 auto;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <input type="file" name="file" accept=".csv" required
+                           style="flex: 1; padding: 15px; border-radius: 8px; border: none; background: white;">
+                    <button type="submit" class="submit-btn" style="background: white; color: var(--accent); margin: 0;">
+                        🚀 Analyze
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <footer>
+        <p>AutoEDA • Automated Data Cleaning & Exploratory Analysis</p>
+        <p style="margin-top: 10px; font-size: 0.85rem; opacity: 0.8;">
+            Built with Flask & Pandas • No login required • Privacy-focused (files processed temporarily)
+        </p>
+    </footer>
+
+    <script>
+        function updateFileName() {
+            const fileInput = document.getElementById('fileInput');
+            const fileName = fileInput.files[0]?.name || 'Choose a CSV file';
+            const fileLabel = fileInput.parentElement;
+
+            // Update visual feedback
+            if (fileInput.files.length > 0) {
+                fileLabel.style.borderColor = 'var(--success)';
+                fileLabel.style.background = 'rgba(16, 185, 129, 0.1)';
+            }
+        }
+
+        // Form submission loading state
+        document.querySelector('.upload-form').addEventListener('submit', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            if (submitBtn && btnText && loadingSpinner) {
+                btnText.textContent = 'Processing...';
+                loadingSpinner.style.display = 'inline-block';
+                submitBtn.disabled = true;
+            }
+        });
+
+        // Add animation to feature cards on scroll
+        document.addEventListener('DOMContentLoaded', function() {
+            const featureCards = document.querySelectorAll('.feature-card');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry, index) => {
+                    if (entry.isIntersecting) {
+                        setTimeout(() => {
+                            entry.target.style.opacity = '1';
+                            entry.target.style.transform = 'translateY(0)';
+                        }, index * 100);
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            featureCards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                observer.observe(card);
+            });
+        });
+    </script>
+</body>
+</html>
