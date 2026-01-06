@@ -9,26 +9,22 @@ import seaborn as sns
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash, jsonify, session
 import io
 import json
-import base64
 from werkzeug.utils import secure_filename
 from datetime import datetime, date
 import re
 import warnings
-import tempfile
 
 warnings.filterwarnings('ignore')
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+BASE_TMP = "/tmp"
 
-# Vercel-specific configuration
-app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
-app.config['PROCESSED_FOLDER'] = '/tmp/processed'
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB for Vercel
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'autoeda-secret-key-2024')
+app.config['UPLOAD_FOLDER'] = os.path.join(BASE_TMP, 'uploads')
+app.config['PROCESSED_FOLDER'] = os.path.join(BASE_TMP, 'processed')
+PLOTS_FOLDER = os.path.join(BASE_TMP, 'plots')
 
-# Ensure tmp directories exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+app.config['SECRET_KEY'] = 'autoeda-secret-key-2024'
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -52,6 +48,10 @@ app.json_encoder = CustomJSONEncoder
 
 ALLOWED_EXTENSIONS = {'csv'}
 
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+os.makedirs(PLOTS_FOLDER, exist_ok=True)
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -65,7 +65,7 @@ def preprocess_column(df, col):
 
         # Convert empty strings and common missing value indicators to NaN
         missing_indicators = ['', 'nan', 'null', 'none', 'na', 'n/a', 'nil', 'missing', '-', '--', '---', 'null',
-                              'undefined', 'nan', 'NaN', 'NAN', 'Nan', 'NULL', 'Null', 'NONE', 'None', 'NA', 'N/A']
+                              'undefined']
         df[col] = df[col].replace(missing_indicators, np.nan)
 
         # Handle case where entire column might be strings like "NaN"
@@ -129,7 +129,7 @@ def detect_column_types(df):
             # If no format worked perfectly, try infer_datetime_format
             if 'date' not in column_info.get(col, ''):
                 try:
-                    converted = pd.to_datetime(df[col], errors='coerce')
+                    converted = pd.to_datetime(df[col], errors='coerce', infer_datetime_format=True)
                     if converted.notna().mean() > 0.6:
                         df[col] = converted
                         column_info[col] = 'date'
@@ -341,7 +341,7 @@ def clean_dataset(df, column_types, user_overrides=None):
 
                 elif new_type == 'date' and original_type != 'date':
                     try:
-                        df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors='coerce')
+                        df_cleaned[col] = pd.to_datetime(df_cleaned[col], errors='coerce', infer_datetime_format=True)
                         cleaning_report['columns_converted'][
                             col] = f'User override: Converted from {original_type} to date'
                     except:
@@ -571,8 +571,12 @@ def generate_summary(df, column_types, cleaning_report):
 
 
 def generate_visualizations(df, column_types, filename):
-    """Generate visualizations and return as base64 encoded strings"""
-    plots = {}
+    plot_paths = {}
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    plots_dir = PLOTS_FOLDER
+
+    os.makedirs(plots_dir, exist_ok=True)
 
     numeric_cols = [col for col, col_type in column_types.items()
                     if col_type == 'numeric' and col in df.columns]
@@ -590,11 +594,11 @@ def generate_visualizations(df, column_types, filename):
     plt.rcParams['axes.grid'] = True
     plt.rcParams['grid.alpha'] = 0.3
 
-    # 1. Generate histogram if there are numeric columns
     if numeric_df is not None and not numeric_df.empty:
         valid_numeric_cols = [col for col in numeric_df.columns if numeric_df[col].notna().any()]
         if valid_numeric_cols:
             try:
+                # Histograms
                 n_cols = min(3, len(valid_numeric_cols))
                 n_rows = int(np.ceil(len(valid_numeric_cols) / n_cols))
 
@@ -614,54 +618,47 @@ def generate_visualizations(df, column_types, filename):
 
                 plt.suptitle('Numeric Distributions', fontsize=14)
                 plt.tight_layout()
-
-                # Convert plot to base64
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+                hist_path = os.path.join(plots_dir, f'hist_{timestamp}.png')
+                plt.savefig(hist_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                buf.seek(0)
-                plots['histogram'] = base64.b64encode(buf.getvalue()).decode('utf-8')
+                plot_paths['histogram'] = f'plots/hist_{timestamp}.png'
             except Exception as e:
                 print(f"Error generating histograms: {e}")
 
-    # 2. Correlation heatmap
-    if numeric_df is not None and len(valid_numeric_cols) > 1:
-        try:
-            correlation = numeric_df[valid_numeric_cols].corr()
-            if not correlation.empty and correlation.notna().any().any():
-                plt.figure(figsize=(10, 8))
-                mask = np.triu(np.ones_like(correlation, dtype=bool))
-                sns.heatmap(correlation, mask=mask, annot=True, fmt='.2f',
-                            cmap='coolwarm', center=0, square=True,
-                            cbar_kws={"shrink": .8}, linewidths=1)
-                plt.title('Correlation Heatmap', fontsize=14, pad=20)
+        # Correlation heatmap
+        if len(valid_numeric_cols) > 1:
+            try:
+                correlation = numeric_df[valid_numeric_cols].corr()
+                if not correlation.empty and correlation.notna().any().any():
+                    plt.figure(figsize=(10, 8))
+                    mask = np.triu(np.ones_like(correlation, dtype=bool))
+                    sns.heatmap(correlation, mask=mask, annot=True, fmt='.2f',
+                                cmap='coolwarm', center=0, square=True,
+                                cbar_kws={"shrink": .8}, linewidths=1)
+                    plt.title('Correlation Heatmap', fontsize=14, pad=20)
+                    heatmap_path = os.path.join(plots_dir, f'heatmap_{timestamp}.png')
+                    plt.savefig(heatmap_path, dpi=100, bbox_inches='tight')
+                    plt.close()
+                    plot_paths['heatmap'] = f'plots/heatmap_{timestamp}.png'
+            except Exception as e:
+                print(f"Error generating heatmap: {e}")
 
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+        # Boxplots
+        if len(valid_numeric_cols) > 0 and len(valid_numeric_cols) <= 10:
+            try:
+                plt.figure(figsize=(12, 6))
+                numeric_df[valid_numeric_cols].boxplot()
+                plt.title('Boxplot - Outlier Detection', fontsize=14, pad=20)
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                boxplot_path = os.path.join(plots_dir, f'boxplot_{timestamp}.png')
+                plt.savefig(boxplot_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                buf.seek(0)
-                plots['heatmap'] = base64.b64encode(buf.getvalue()).decode('utf-8')
-        except Exception as e:
-            print(f"Error generating heatmap: {e}")
+                plot_paths['boxplot'] = f'plots/boxplot_{timestamp}.png'
+            except Exception as e:
+                print(f"Error generating boxplot: {e}")
 
-    # 3. Boxplots
-    if numeric_df is not None and len(valid_numeric_cols) > 0 and len(valid_numeric_cols) <= 10:
-        try:
-            plt.figure(figsize=(12, 6))
-            numeric_df[valid_numeric_cols].boxplot()
-            plt.title('Boxplot - Outlier Detection', fontsize=14, pad=20)
-            plt.xticks(rotation=45)
-            plt.tight_layout()
-
-            buf = io.BytesIO()
-            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
-            plt.close()
-            buf.seek(0)
-            plots['boxplot'] = base64.b64encode(buf.getvalue()).decode('utf-8')
-        except Exception as e:
-            print(f"Error generating boxplot: {e}")
-
-    # 4. Bar charts for categorical
+    # Bar charts for categorical
     if categorical_cols:
         try:
             valid_categorical_cols = [col for col in categorical_cols if col in df.columns and df[col].nunique() > 0]
@@ -686,31 +683,27 @@ def generate_visualizations(df, column_types, filename):
 
                 plt.suptitle('Top Categories', fontsize=14)
                 plt.tight_layout()
-
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+                barchart_path = os.path.join(plots_dir, f'barchart_{timestamp}.png')
+                plt.savefig(barchart_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                buf.seek(0)
-                plots['barchart'] = base64.b64encode(buf.getvalue()).decode('utf-8')
+                plot_paths['barchart'] = f'plots/barchart_{timestamp}.png'
         except Exception as e:
             print(f"Error generating barchart: {e}")
 
-    if not plots:
+    if not plot_paths:
         try:
             plt.figure(figsize=(8, 4))
             plt.text(0.5, 0.5, 'No visualizations available\nDataset may not have suitable columns',
                      ha='center', va='center', fontsize=12)
             plt.axis('off')
-
-            buf = io.BytesIO()
-            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+            no_plot_path = os.path.join(plots_dir, f'noplot_{timestamp}.png')
+            plt.savefig(no_plot_path, dpi=100, bbox_inches='tight')
             plt.close()
-            buf.seek(0)
-            plots['noplot'] = base64.b64encode(buf.getvalue()).decode('utf-8')
+            plot_paths['noplot'] = f'plots/noplot_{timestamp}.png'
         except Exception as e:
             print(f"Error generating placeholder plot: {e}")
 
-    return plots
+    return plot_paths
 
 
 def get_preview_data(df, column_types, filename):
@@ -830,9 +823,10 @@ def process_data():
         column_types = {**detected_types, **user_overrides}
         df_cleaned, column_types, cleaning_report = clean_dataset(df, column_types, user_overrides)
         summary = generate_summary(df_cleaned, column_types, cleaning_report)
+        plot_paths = generate_visualizations(df_cleaned, column_types, filename)
 
-        # Get plots as base64 strings
-        plots = generate_visualizations(df_cleaned, column_types, filename)
+        if not isinstance(plot_paths, dict):
+            plot_paths = {}
 
         cleaned_filename = f"cleaned_{filename}"
         cleaned_filepath = os.path.join(app.config['PROCESSED_FOLDER'], cleaned_filename)
@@ -873,7 +867,7 @@ def process_data():
 
         return render_template('results.html',
                                summary=summary,
-                               plots=plots,
+                               plot_paths=plot_paths,
                                cleaned_filename=cleaned_filename,
                                column_types=column_types,
                                cleaning_report=cleaning_report)
@@ -907,6 +901,33 @@ def download_file(filename):
         return redirect('/')
 
 
+@app.route('/download_plot/<plot_type>')
+def download_plot(plot_type):
+    try:
+        plot_dir = PLOTS_FOLDER
+        if not os.path.exists(plot_dir):
+            flash('Plots directory not found', 'error')
+            return redirect('/')
+
+        plot_files = [f for f in os.listdir(plot_dir) if plot_type in f]
+
+        if not plot_files:
+            flash('Plot not found', 'error')
+            return redirect('/')
+
+        latest_plot = sorted(plot_files)[-1]
+        plot_path = os.path.join(plot_dir, latest_plot)
+
+        return send_file(
+            plot_path,
+            as_attachment=True,
+            download_name=f"{plot_type}_{datetime.now().strftime('%Y%m%d')}.png"
+        )
+    except Exception as e:
+        flash(f'Error downloading plot: {str(e)}', 'error')
+        return redirect('/')
+
+
 @app.route('/clear_session')
 def clear_session():
     session.clear()
@@ -920,19 +941,22 @@ def debug_info():
         'session_keys': list(session.keys()),
         'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
         'processed_folder_exists': os.path.exists(app.config['PROCESSED_FOLDER']),
+        'plots_folder_exists': os.path.exists(PLOTS_FOLDER),
         'upload_folder_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(
             app.config['UPLOAD_FOLDER']) else [],
         'processed_folder_files': os.listdir(app.config['PROCESSED_FOLDER']) if os.path.exists(
             app.config['PROCESSED_FOLDER']) else [],
+        'plots_folder_files': os.listdir(PLOTS_FOLDER) if os.path.exists(PLOTS_FOLDER) else []
     }
     return jsonify(info)
 
 
-# Vercel handler
-def handler(event, context):
-    return app(event, context)
+@app.route('/plot/<filename>')
+def serve_plot(filename):
+    return send_file(os.path.join(PLOTS_FOLDER, filename))
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+
+
+# Vercel entry point
+app = app
