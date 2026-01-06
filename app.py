@@ -575,136 +575,182 @@ def generate_visualizations(df, column_types, filename):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     plots_dir = PLOTS_FOLDER
-
     os.makedirs(plots_dir, exist_ok=True)
 
-    numeric_cols = [col for col, col_type in column_types.items()
-                    if col_type == 'numeric' and col in df.columns]
+    # ----------------------------
+    # Identify columns
+    # ----------------------------
+    numeric_cols = [
+        col for col, t in column_types.items()
+        if t == "numeric" and col in df.columns
+    ]
 
+    categorical_cols = [
+        col for col, t in column_types.items()
+        if t == "categorical" and col in df.columns
+    ]
+
+    # ----------------------------
+    # Numeric dataframe
+    # ----------------------------
     numeric_df = None
     if numeric_cols:
-        numeric_df = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-        numeric_df = numeric_df.dropna(axis=1, how='all')
+        numeric_df = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
+        numeric_df = numeric_df.dropna(axis=1, how="all")
 
-    categorical_cols = [col for col, col_type in column_types.items()
-                        if col_type == 'categorical' and col in df.columns]
+    # ----------------------------
+    # Matplotlib defaults
+    # ----------------------------
+    plt.style.use("default")
+    plt.rcParams.update({
+        "figure.figsize": (10, 6),
+        "axes.grid": True,
+        "grid.alpha": 0.3
+    })
 
-    plt.style.use('default')
-    plt.rcParams['figure.figsize'] = (10, 6)
-    plt.rcParams['axes.grid'] = True
-    plt.rcParams['grid.alpha'] = 0.3
-
+    # ============================
+    # HISTOGRAMS
+    # ============================
     if numeric_df is not None and not numeric_df.empty:
-        valid_numeric_cols = [col for col in numeric_df.columns if numeric_df[col].notna().any()]
+        valid_numeric_cols = [
+            col for col in numeric_df.columns
+            if numeric_df[col].notna().sum() > 1
+        ]
+
         if valid_numeric_cols:
             try:
-                # Histograms
                 n_cols = min(3, len(valid_numeric_cols))
                 n_rows = int(np.ceil(len(valid_numeric_cols) / n_cols))
 
                 fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 5, n_rows * 4))
-                axes = axes.flatten() if len(valid_numeric_cols) > 1 else [axes]
+                axes = np.array(axes).reshape(-1)
 
-                for idx, col in enumerate(valid_numeric_cols[:len(axes)]):
-                    col_data = numeric_df[col].dropna()
-                    if len(col_data) > 0:
-                        axes[idx].hist(col_data, bins=20, alpha=0.7, color='#2563eb', edgecolor='black')
-                        axes[idx].set_title(f'{col}', fontsize=12)
-                        axes[idx].set_xlabel('Value')
-                        axes[idx].set_ylabel('Frequency')
+                for i, col in enumerate(valid_numeric_cols):
+                    data = numeric_df[col].dropna()
+                    axes[i].hist(data, bins=20, edgecolor="black", alpha=0.75)
+                    axes[i].set_title(col)
+                    axes[i].set_xlabel("Value")
+                    axes[i].set_ylabel("Frequency")
 
-                for idx in range(len(valid_numeric_cols), len(axes)):
-                    axes[idx].set_visible(False)
+                for j in range(i + 1, len(axes)):
+                    axes[j].axis("off")
 
-                plt.suptitle('Numeric Distributions', fontsize=14)
+                plt.suptitle("Distribution Histograms", fontsize=14)
                 plt.tight_layout()
-                hist_path = os.path.join(plots_dir, f'hist_{timestamp}.png')
-                plt.savefig(hist_path, dpi=100, bbox_inches='tight')
+
+                hist_file = f"hist_{timestamp}.png"
+                plt.savefig(os.path.join(plots_dir, hist_file), dpi=120)
                 plt.close()
-                plot_paths['histogram'] = f'hist_{timestamp}.png'
-                plot_paths['heatmap'] = f'heatmap_{timestamp}.png'
-                plot_paths['boxplot'] = f'boxplot_{timestamp}.png'
-                plot_paths['barchart'] = f'barchart_{timestamp}.png'
-            except Exception as e:
-                print(f"Error generating histograms: {e}")
 
-        # Correlation heatmap
-        if len(valid_numeric_cols) > 1:
+                plot_paths["histogram"] = hist_file
+            except Exception as e:
+                print("Histogram error:", e)
+
+    # ============================
+    # CORRELATION HEATMAP (FIXED)
+    # ============================
+    if numeric_df is not None:
+        corr_df = numeric_df.dropna()
+
+        if corr_df.shape[1] >= 2 and corr_df.shape[0] >= 2:
             try:
-                correlation = numeric_df[valid_numeric_cols].corr()
-                if not correlation.empty and correlation.notna().any().any():
-                    plt.figure(figsize=(10, 8))
-                    mask = np.triu(np.ones_like(correlation, dtype=bool))
-                    sns.heatmap(correlation, mask=mask, annot=True, fmt='.2f',
-                                cmap='coolwarm', center=0, square=True,
-                                cbar_kws={"shrink": .8}, linewidths=1)
-                    plt.title('Correlation Heatmap', fontsize=14, pad=20)
-                    heatmap_path = os.path.join(plots_dir, f'heatmap_{timestamp}.png')
-                    plt.savefig(heatmap_path, dpi=100, bbox_inches='tight')
-                    plt.close()
-                    plot_paths['heatmap'] = f'plots/heatmap_{timestamp}.png'
-            except Exception as e:
-                print(f"Error generating heatmap: {e}")
+                corr = corr_df.corr()
 
-        # Boxplots
-        if len(valid_numeric_cols) > 0 and len(valid_numeric_cols) <= 10:
+                plt.figure(figsize=(10, 8))
+                sns.heatmap(
+                    corr,
+                    annot=True,
+                    fmt=".2f",
+                    cmap="coolwarm",
+                    square=True,
+                    linewidths=0.5
+                )
+
+                plt.title("Correlation Heatmap", fontsize=14)
+                plt.tight_layout()
+
+                heatmap_file = f"heatmap_{timestamp}.png"
+                plt.savefig(os.path.join(plots_dir, heatmap_file), dpi=120)
+                plt.close()
+
+                plot_paths["heatmap"] = heatmap_file
+            except Exception as e:
+                print("Heatmap error:", e)
+
+    # ============================
+    # BOXPLOTS
+    # ============================
+    if numeric_df is not None:
+        valid_numeric_cols = [
+            col for col in numeric_df.columns
+            if numeric_df[col].notna().sum() > 1
+        ]
+
+        if 1 <= len(valid_numeric_cols) <= 10:
             try:
                 plt.figure(figsize=(12, 6))
                 numeric_df[valid_numeric_cols].boxplot()
-                plt.title('Boxplot - Outlier Detection', fontsize=14, pad=20)
+                plt.title("Outlier Detection Boxplots")
                 plt.xticks(rotation=45)
                 plt.tight_layout()
-                boxplot_path = os.path.join(plots_dir, f'boxplot_{timestamp}.png')
-                plt.savefig(boxplot_path, dpi=100, bbox_inches='tight')
+
+                boxplot_file = f"boxplot_{timestamp}.png"
+                plt.savefig(os.path.join(plots_dir, boxplot_file), dpi=120)
                 plt.close()
-                plot_paths['boxplot'] = f'plots/boxplot_{timestamp}.png'
+
+                plot_paths["boxplot"] = boxplot_file
             except Exception as e:
-                print(f"Error generating boxplot: {e}")
+                print("Boxplot error:", e)
 
-    # Bar charts for categorical
-    if categorical_cols:
+    # ============================
+    # CATEGORICAL BAR CHARTS
+    # ============================
+    valid_cats = [
+        col for col in categorical_cols
+        if df[col].nunique() > 0
+    ]
+
+    if valid_cats:
         try:
-            valid_categorical_cols = [col for col in categorical_cols if col in df.columns and df[col].nunique() > 0]
-            if valid_categorical_cols:
-                n_cats = min(4, len(valid_categorical_cols))
-                fig, axes = plt.subplots(1, n_cats, figsize=(n_cats * 5, 4))
-                if n_cats == 1:
-                    axes = [axes]
+            n = min(4, len(valid_cats))
+            fig, axes = plt.subplots(1, n, figsize=(n * 5, 4))
+            if n == 1:
+                axes = [axes]
 
-                for idx, col in enumerate(valid_categorical_cols[:n_cats]):
-                    if col in df.columns:
-                        top_values = df[col].value_counts().head(5)
-                        if not top_values.empty:
-                            colors = plt.cm.Blues(np.linspace(0.5, 0.9, len(top_values)))
-                            axes[idx].bar(range(len(top_values)), top_values.values, color=colors, alpha=0.8)
-                            col_name = col[:15] + '...' if len(col) > 15 else col
-                            axes[idx].set_title(f'{col_name}', fontsize=11)
-                            axes[idx].set_xticks(range(len(top_values)))
-                            axes[idx].set_xticklabels([str(x)[:10] + '...' if len(str(x)) > 10 else str(x)
-                                                       for x in top_values.index], rotation=45, ha='right')
-                            axes[idx].set_ylabel('Count')
+            for ax, col in zip(axes, valid_cats[:n]):
+                counts = df[col].value_counts().head(5)
+                ax.bar(counts.index.astype(str), counts.values)
+                ax.set_title(col[:15])
+                ax.tick_params(axis="x", rotation=45)
 
-                plt.suptitle('Top Categories', fontsize=14)
-                plt.tight_layout()
-                barchart_path = os.path.join(plots_dir, f'barchart_{timestamp}.png')
-                plt.savefig(barchart_path, dpi=100, bbox_inches='tight')
-                plt.close()
-                plot_paths['barchart'] = f'plots/barchart_{timestamp}.png'
-        except Exception as e:
-            print(f"Error generating barchart: {e}")
+            plt.suptitle("Top Categorical Values", fontsize=14)
+            plt.tight_layout()
 
-    if not plot_paths:
-        try:
-            plt.figure(figsize=(8, 4))
-            plt.text(0.5, 0.5, 'No visualizations available\nDataset may not have suitable columns',
-                     ha='center', va='center', fontsize=12)
-            plt.axis('off')
-            no_plot_path = os.path.join(plots_dir, f'noplot_{timestamp}.png')
-            plt.savefig(no_plot_path, dpi=100, bbox_inches='tight')
+            bar_file = f"barchart_{timestamp}.png"
+            plt.savefig(os.path.join(plots_dir, bar_file), dpi=120)
             plt.close()
-            plot_paths['noplot'] = f'plots/noplot_{timestamp}.png'
+
+            plot_paths["barchart"] = bar_file
         except Exception as e:
-            print(f"Error generating placeholder plot: {e}")
+            print("Barchart error:", e)
+
+    # ============================
+    # FALLBACK IMAGE
+    # ============================
+    if not plot_paths:
+        plt.figure(figsize=(8, 4))
+        plt.text(
+            0.5, 0.5,
+            "No visualizations available\nDataset lacks suitable columns",
+            ha="center", va="center", fontsize=12
+        )
+        plt.axis("off")
+
+        noplot_file = f"noplot_{timestamp}.png"
+        plt.savefig(os.path.join(plots_dir, noplot_file), dpi=120)
+        plt.close()
+
+        plot_paths["noplot"] = noplot_file
 
     return plot_paths
 
