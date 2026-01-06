@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "autoeda"
+version = "1.0.0"
+dependencies = [
+    "Flask==3.0.0",
+    "pandas==2.1.4",
+    "numpy==1.26.4",
+    "matplotlib==3.8.2",
+    "seaborn==0.13.0",
+    "Werkzeug==3.0.1"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "black"]
+
+[tool.vercel.python]
+version = "3.11"
