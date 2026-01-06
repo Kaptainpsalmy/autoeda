@@ -13,26 +13,27 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, date
 import re
 import warnings
+import tempfile
+import shutil
 
 warnings.filterwarnings('ignore')
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
-# Configuration for Vercel (serverless) vs local
-if 'VERCEL' in os.environ:
-    # Vercel serverless environment
-    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB for Vercel
-    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
-    app.config['PROCESSED_FOLDER'] = '/tmp/processed'
-else:
-    # Local development
-    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB locally
-    app.config['UPLOAD_FOLDER'] = 'uploads'
-    app.config['PROCESSED_FOLDER'] = 'processed'
+# Vercel-specific configuration
+# Use /tmp directory for serverless functions (readable and writable)
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+app.config['PROCESSED_FOLDER'] = '/tmp/processed'
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB for Vercel
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'autoeda-secret-key-2024')
 
+# Ensure tmp directories exist (Vercel allows writing to /tmp)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
 
-
-app.config['SECRET_KEY'] = 'autoeda-secret-key-2024'
+# Also create static/plots in /tmp for Vercel compatibility
+PLOTS_DIR = '/tmp/static/plots'
+os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -55,10 +56,6 @@ class CustomJSONEncoder(json.JSONEncoder):
 app.json_encoder = CustomJSONEncoder
 
 ALLOWED_EXTENSIONS = {'csv'}
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
-os.makedirs('static/plots', exist_ok=True)
 
 
 def allowed_file(filename):
@@ -582,7 +579,8 @@ def generate_visualizations(df, column_types, filename):
     plot_paths = {}
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-    plots_dir = 'static/plots'
+    # Use Vercel-compatible plots directory
+    plots_dir = PLOTS_DIR
     os.makedirs(plots_dir, exist_ok=True)
 
     numeric_cols = [col for col, col_type in column_types.items()
@@ -628,7 +626,7 @@ def generate_visualizations(df, column_types, filename):
                 hist_path = os.path.join(plots_dir, f'hist_{timestamp}.png')
                 plt.savefig(hist_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                plot_paths['histogram'] = f'plots/hist_{timestamp}.png'
+                plot_paths['histogram'] = f'/tmp/static/plots/hist_{timestamp}.png'
             except Exception as e:
                 print(f"Error generating histograms: {e}")
 
@@ -646,7 +644,7 @@ def generate_visualizations(df, column_types, filename):
                     heatmap_path = os.path.join(plots_dir, f'heatmap_{timestamp}.png')
                     plt.savefig(heatmap_path, dpi=100, bbox_inches='tight')
                     plt.close()
-                    plot_paths['heatmap'] = f'plots/heatmap_{timestamp}.png'
+                    plot_paths['heatmap'] = f'/tmp/static/plots/heatmap_{timestamp}.png'
             except Exception as e:
                 print(f"Error generating heatmap: {e}")
 
@@ -661,7 +659,7 @@ def generate_visualizations(df, column_types, filename):
                 boxplot_path = os.path.join(plots_dir, f'boxplot_{timestamp}.png')
                 plt.savefig(boxplot_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                plot_paths['boxplot'] = f'plots/boxplot_{timestamp}.png'
+                plot_paths['boxplot'] = f'/tmp/static/plots/boxplot_{timestamp}.png'
             except Exception as e:
                 print(f"Error generating boxplot: {e}")
 
@@ -693,7 +691,7 @@ def generate_visualizations(df, column_types, filename):
                 barchart_path = os.path.join(plots_dir, f'barchart_{timestamp}.png')
                 plt.savefig(barchart_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                plot_paths['barchart'] = f'plots/barchart_{timestamp}.png'
+                plot_paths['barchart'] = f'/tmp/static/plots/barchart_{timestamp}.png'
         except Exception as e:
             print(f"Error generating barchart: {e}")
 
@@ -706,7 +704,7 @@ def generate_visualizations(df, column_types, filename):
             no_plot_path = os.path.join(plots_dir, f'noplot_{timestamp}.png')
             plt.savefig(no_plot_path, dpi=100, bbox_inches='tight')
             plt.close()
-            plot_paths['noplot'] = f'plots/noplot_{timestamp}.png'
+            plot_paths['noplot'] = f'/tmp/static/plots/noplot_{timestamp}.png'
         except Exception as e:
             print(f"Error generating placeholder plot: {e}")
 
@@ -911,7 +909,7 @@ def download_file(filename):
 @app.route('/download_plot/<plot_type>')
 def download_plot(plot_type):
     try:
-        plot_dir = 'static/plots'
+        plot_dir = PLOTS_DIR
         if not os.path.exists(plot_dir):
             flash('Plots directory not found', 'error')
             return redirect('/')
@@ -948,14 +946,33 @@ def debug_info():
         'session_keys': list(session.keys()),
         'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
         'processed_folder_exists': os.path.exists(app.config['PROCESSED_FOLDER']),
-        'plots_folder_exists': os.path.exists('static/plots'),
+        'plots_folder_exists': os.path.exists(PLOTS_DIR),
         'upload_folder_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(
             app.config['UPLOAD_FOLDER']) else [],
         'processed_folder_files': os.listdir(app.config['PROCESSED_FOLDER']) if os.path.exists(
             app.config['PROCESSED_FOLDER']) else [],
-        'plots_folder_files': os.listdir('static/plots') if os.path.exists('static/plots') else []
+        'plots_folder_files': os.listdir(PLOTS_DIR) if os.path.exists(PLOTS_DIR) else []
     }
     return jsonify(info)
+
+
+# Vercel serverless handler
+@app.route('/static/plots/<path:filename>')
+def serve_plot(filename):
+    """Serve plots from /tmp directory"""
+    try:
+        plot_path = os.path.join(PLOTS_DIR, filename)
+        if os.path.exists(plot_path):
+            return send_file(plot_path)
+        else:
+            return "Plot not found", 404
+    except:
+        return "Error serving plot", 500
+
+
+# Handler for Vercel
+def handler(event, context):
+    return app(event, context)
 
 
 if __name__ == '__main__':
