@@ -621,7 +621,10 @@ def generate_visualizations(df, column_types, filename):
                 hist_path = os.path.join(plots_dir, f'hist_{timestamp}.png')
                 plt.savefig(hist_path, dpi=100, bbox_inches='tight')
                 plt.close()
-                plot_paths['histogram'] = f'plots/hist_{timestamp}.png'
+                plot_paths['histogram'] = f'hist_{timestamp}.png'
+                plot_paths['heatmap'] = f'heatmap_{timestamp}.png'
+                plot_paths['boxplot'] = f'boxplot_{timestamp}.png'
+                plot_paths['barchart'] = f'barchart_{timestamp}.png'
             except Exception as e:
                 print(f"Error generating histograms: {e}")
 
